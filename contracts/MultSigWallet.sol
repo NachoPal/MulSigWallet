@@ -1,4 +1,5 @@
 pragma solidity ^0.4.24;
+//pragma experimental ABIEncoderV2;
 
 import "./Mixins/Ownable.sol";
 
@@ -57,10 +58,10 @@ contract MultiSigWallet is Ownable {
       _;
   }
 
-  uint numberOfOwners = 3;
-  uint numberOfConfirmations = 2;
-  mapping(address => bool) owners;
-  address masterKey;
+  uint public numberOfOwners;
+  uint public numberOfConfirmations;
+  mapping(address => bool) public owners;
+  address public masterKey;
 
   struct Transaction {
     address destination;
@@ -71,15 +72,33 @@ contract MultiSigWallet is Ownable {
     mapping(address => bool) confirmations;
   }
 
-  mapping(uint => Transaction) transactions;
+  mapping(uint => Transaction) public transactions;
   uint transactionIndex = 1;
 
-  constructor(address[] _owners, address _masterKey) payable {
-    require(_owners.length == numberOfOwners, "Too many owners to initialize");
-    for(uint i=0; i < numberOfOwners; i++) {
+  constructor(
+    address[] _owners,
+    address _masterKey,
+    uint _numberOfOwners,
+    uint _numberOfConfirmations
+  )
+    payable
+  {
+    require(_owners.length == _numberOfOwners, "Too many owners to initialize");
+    require(_numberOfOwners >= _numberOfConfirmations, "Too many owner confirmations");
+    for(uint i=0; i < _numberOfOwners; i++) {
       owners[_owners[i]] = true;
     }
+    numberOfOwners = _numberOfOwners;
+    numberOfConfirmations = _numberOfConfirmations;
     masterKey = _masterKey;
+  }
+
+  function balance() public view {
+    address(this).balance;
+  }
+
+  function transactionConfirmedBy(uint _transactionId, address _owner) public view returns(bool) {
+    return transactions[_transactionId].confirmations[_owner];
   }
 
   function submitTransaction(address _destination, uint _value, bytes _data)
