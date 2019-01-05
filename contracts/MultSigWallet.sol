@@ -1,23 +1,61 @@
 pragma solidity ^0.4.24;
 
-import "./Ownable.sol";
+import "./Mixins/Ownable.sol";
 
 /** @title ERC20 extended token */
 contract MultiSigWallet is Ownable {
 
+  event Submission(
+    uint indexed transactionId,
+    address indexed submitter
+  );
+
+  event Confirmation(
+    uint indexed transactionId,
+    address indexed confirmer
+  );
+
+  event Execution(uint indexed transactionId);
+  event ExecutionFailure(uint indexed transactionId);
+
+  event Deposit(address indexed sender, uint value);
+
+  modifier isMasterKey(address _address) {
+    require(
+        _address == masterKey,
+        "Address is not Master Key"
+    );
+    _;
+  }
+
   modifier ownerExists(address _owner) {
-      require(owners[_owner], "Address is not an Owner")
+      require(owners[_owner], "Address is not an Owner");
       _;
   }
 
   modifier transactionExists(uint _transactionId) {
       require(
-        transactions[transactionId].destination != 0,
+        transactions[_transactionId].destination != 0,
         "Transaction to confirm does not exist"
-      )
+      );
       _;
   }
 
+  modifier transactionNotConfirmed(uint _transactionId, address _sender) {
+      require(
+        transactions[_transactionId].confirmations[_sender] == false,
+        "Transaction already confirm by owner"
+        );
+      _;
+  }
+
+  modifier transactionNotExecuted(uint _transactionId) {
+      require(
+          transactions[_transactionId].executed == false,
+          "Transaction already executed"
+      );
+      _;
+  }
 
   uint numberOfOwners = 3;
   uint numberOfConfirmations = 2;
@@ -29,21 +67,26 @@ contract MultiSigWallet is Ownable {
     uint value;
     bytes data;
     bool executed;
+    uint confirmationsCounter;
+    mapping(address => bool) confirmations;
   }
 
   mapping(uint => Transaction) transactions;
   uint transactionIndex = 1;
 
-  constructor(address[] _owners, address _masterKey) {
-    require(address.length == numberOfOwners, "Too many owner addresses");
+  constructor(address[] _owners, address _masterKey) payable {
+    require(_owners.length == numberOfOwners, "Too many owners to initialize");
     for(uint i=0; i < numberOfOwners; i++) {
       owners[_owners[i]] = true;
     }
     masterKey = _masterKey;
   }
 
-  function submitTransaction(address _destination, uint _value, bytes _data) {
-    transactionId = addTransaction(_destination, _value, _data);
+  function submitTransaction(address _destination, uint _value, bytes _data)
+    ownerExists(msg.sender)
+    public
+  {
+    uint transactionId = addTransaction(_destination, _value, _data);
     confirmTransaction(transactionId);
   }
 
@@ -56,37 +99,59 @@ contract MultiSigWallet is Ownable {
           destination: _destination,
           value: _value,
           data: _data,
-          executed: false
+          executed: false,
+          confirmationsCounter: 0
       });
       transactionIndex += 1;
-      //Submission(transactionId);
+      emit Submission(transactionId, msg.sender);
   }
 
   function confirmTransaction(uint _transactionId)
       public
       ownerExists(msg.sender)
-      transactionExists(transactionId)
-      notConfirmed(transactionId, msg.sender)
+      transactionExists(_transactionId)
+      transactionNotExecuted(_transactionId)
+      transactionNotConfirmed(_transactionId, msg.sender)
   {
-      confirmations[transactionId][msg.sender] = true;
-      //Confirmation(msg.sender, transactionId);
-      executeTransaction(transactionId);
+      transactions[_transactionId].confirmations[msg.sender] = true;
+      transactions[_transactionId].confirmationsCounter += 1;
+
+      emit Confirmation(_transactionId, msg.sender);
+
+      if(transactions[_transactionId].confirmationsCounter == numberOfConfirmations) {
+        executeTransaction(_transactionId);
+      }
   }
 
-  function executeTransaction(uint transactionId)
-      public
-      notExecuted(transactionId)
+  function executeTransaction(uint _transactionId)
+      internal
   {
-      if (isConfirmed(transactionId)) {
-          Transaction tx = transactions[transactionId];
-          tx.executed = true;
-          if (tx.destination.call.value(tx.value)(tx.data))
-              Execution(transactionId);
-          else {
-              ExecutionFailure(transactionId);
-              tx.executed = false;
-          }
-      }
+        Transaction storage trx = transactions[_transactionId];
+        trx.executed = true;
+        if (address(trx.destination).call.value(trx.value)(trx.data))
+            emit Execution(_transactionId);
+        else {
+            emit ExecutionFailure(_transactionId);
+        }
+  }
+
+  function withdrawBalance(uint _amount)
+    isMasterKey(msg.sender)
+    external
+  {
+      require(
+        address(this).balance >= _amount,
+        "Wallet does not have enough funds to withdraw"
+      );
+      address(msg.sender).transfer(_amount);
+  }
+
+  /// @dev Fallback function allows to deposit ether.
+  function()
+      payable
+  {
+      if (msg.value > 0)
+          emit Deposit(msg.sender, msg.value);
   }
 
 }
