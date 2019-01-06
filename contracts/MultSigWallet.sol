@@ -6,6 +6,8 @@ import "./Token/IERC20.sol";
 /** @title MultiSigWallet. */
 contract MultiSigWallet is Pausable {
 
+    //---- MODIFERS
+
     /** @dev Check if an address is 0x0.
      *  @param _address Address to be checked.
      */
@@ -71,6 +73,8 @@ contract MultiSigWallet is Pausable {
         );
         _;
     }
+
+    //---- EVENTS
 
     /** @dev Event to log a Token is added.
      *  @param tokenAddress Address of the ERC20 to add support.
@@ -143,6 +147,8 @@ contract MultiSigWallet is Pausable {
         address indexed newMasterKey,
         address indexed oldMasterKey
     );
+
+    //---- STORAGE VARIABLES
 
     uint public numberOfOwners;
     uint public numberOfConfirmations;
