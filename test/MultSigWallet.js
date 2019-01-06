@@ -26,6 +26,7 @@ contract('MultiSigWallet', (ACCOUNTS) => {
 
   const MINTED_TOKENS = 10;
   const TOKEN_TO_TRANSFER = 5;
+  const TOKEN_TO_APPROVE = 5;
   const ETH_TO_TRANSFER = 5000000000000000;
   const ETH_TO_WITHDRAW = 5000000000000000;
   const TX_ID = 1;
@@ -62,12 +63,18 @@ contract('MultiSigWallet', (ACCOUNTS) => {
     });
     describe("#addERC20token", () => {
       it("should approve MASTER_KEY as spender of MultiSigWallet balance", async () => {
-        await MultiSigWallet.submitTransaction(
-          MASTER_KEY,
-          ETH_TO_TRANSFER,
-          "0x0",
-          {from: OWNER_1}
+        await MultiSigWallet.addERC20token(
+          ERC20.address,
+          TOKEN_TO_APPROVE,
+          {from: WALLET_OWNER}
         );
+
+        const allowance = await ERC20.allowance(
+          MultiSigWallet.address,
+          MASTER_KEY
+        );
+
+        assert.equal(allowance, TOKEN_TO_APPROVE, "Tokens allowance was not approved properly");
       });
     });
   });
@@ -205,7 +212,7 @@ contract('MultiSigWallet', (ACCOUNTS) => {
     });
   });
   describe("Interact with ERC20 token", () => {
-    describe("#transfer tokens to OWNER_1", () => {
+    describe("#transfer to OWNER_1", () => {
       it("OWNER_1 should own new tokens", async () => {
 
         const data = getTxData({
@@ -231,6 +238,21 @@ contract('MultiSigWallet', (ACCOUNTS) => {
         const balance = await ERC20.balanceOf(OWNER_1);
 
         assert.equal(balance, TOKEN_TO_TRANSFER, "Tokens were not transfered properly");
+      });
+    });
+
+    describe("#transferFrom MASTER_KEY (no confirmation needed) to MASTER_KEY", () => {
+      it("MASTER_KEY should own new tokens", async () => {
+        await ERC20.transferFrom(
+          MultiSigWallet.address,
+          MASTER_KEY,
+          TOKEN_TO_APPROVE,
+          {from: MASTER_KEY}
+        );
+
+        const balance = await ERC20.balanceOf(MASTER_KEY);
+
+        assert.equal(balance, TOKEN_TO_APPROVE, "Tokens were not transfered properly");
       });
     });
   });
