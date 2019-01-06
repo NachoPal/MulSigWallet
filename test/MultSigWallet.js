@@ -23,6 +23,7 @@ contract('MultiSigWallet', (ACCOUNTS) => {
   // const ERC20 = await ERC20Artifacts.deployed();
 
   const MINTED_TOKENS = 10;
+  const TOKEN_TO_TRANSFER = 5;
   const ETH_TO_TRANSFER = 5000000000000000;
   const ETH_TO_WITHDRAW = 5000000000000000;
   const TX_ID = 1;
@@ -65,7 +66,7 @@ contract('MultiSigWallet', (ACCOUNTS) => {
         await MultiSigWallet.submitTransaction(
           MASTER_KEY,
           ETH_TO_TRANSFER,
-          0,
+          "0x0",
           {from: OWNER_1}
         );
 
@@ -73,14 +74,20 @@ contract('MultiSigWallet', (ACCOUNTS) => {
         const confirmation = await MultiSigWallet.transactionConfirmedBy(TX_ID, OWNER_1);
 
         assert.deepEqual(
-          [
-            MASTER_KEY,
-            web3.toBigNumber(ETH_TO_TRANSFER),
-            "0x",
-            false,
-            web3.toBigNumber(1)
-          ],
-          transaction,
+          {
+            destination: MASTER_KEY,
+            value: web3.utils.toBN(ETH_TO_TRANSFER),
+            data: "0x00",
+            executed: false,
+            confirmationsCounter: web3.utils.toBN(1)
+          },
+          {
+            destination: transaction.destination,
+            value: transaction.value,
+            data: transaction.data,
+            executed: transaction.executed,
+            confirmationsCounter: transaction.confirmationsCounter
+          },
            "Transaction is not recorded properly"
         );
 
@@ -101,27 +108,33 @@ contract('MultiSigWallet', (ACCOUNTS) => {
 
     describe("#confirmTransaction (OWNER_2)", () => {
       it("should confirm and execute the transaction", async () => {
-        const initialMasterKeyBalance = web3.eth.getBalance(MASTER_KEY);
+        const initialMasterKeyBalance = await web3.eth.getBalance(MASTER_KEY);
 
         await MultiSigWallet.confirmTransaction(
           TX_ID,
           {from: OWNER_2}
         );
 
-        const finalMasterKeyBalance = web3.eth.getBalance(MASTER_KEY);
+        const finalMasterKeyBalance = await web3.eth.getBalance(MASTER_KEY);
 
         const transaction = await MultiSigWallet.transactions(TX_ID);
         const confirmation = await MultiSigWallet.transactionConfirmedBy(TX_ID, OWNER_2);
 
         assert.deepEqual(
-          [
-            MASTER_KEY,
-            web3.toBigNumber(ETH_TO_TRANSFER),
-            "0x",
-            true,
-            web3.toBigNumber(2)
-          ],
-          transaction,
+          {
+            destination: MASTER_KEY,
+            value: web3.utils.toBN(ETH_TO_TRANSFER),
+            data: "0x00",
+            executed: true,
+            confirmationsCounter: web3.utils.toBN(2)
+          },
+          {
+            destination: transaction.destination,
+            value: transaction.value,
+            data: transaction.data,
+            executed: transaction.executed,
+            confirmationsCounter: transaction.confirmationsCounter
+          },
            "Transaction is not executed properly"
         );
 
@@ -150,18 +163,18 @@ contract('MultiSigWallet', (ACCOUNTS) => {
   describe("Withdraw ETH from MultiSigWallet", () => {
     describe("#withdrawBalance (MASTER_KEY)", () => {
       it("should withdraw the amount of ETH", async () => {
-        const initialWalletBalance = web3.eth.getBalance(MultiSigWallet.address);
+        const initialWalletBalance = await web3.eth.getBalance(MultiSigWallet.address);
 
         await MultiSigWallet.withdrawBalance(
           ETH_TO_WITHDRAW,
           {from: MASTER_KEY}
         );
 
-        const finalWalletBalance = web3.eth.getBalance(MultiSigWallet.address);
+        const finalWalletBalance = await web3.eth.getBalance(MultiSigWallet.address);
         const expectedFinalWalletBalance = initialWalletBalance - ETH_TO_WITHDRAW;
 
         assert.equal(
-          finalWalletBalance.toNumber(),
+          finalWalletBalance,
           expectedFinalWalletBalance,
           "MASTER_KEY did not withdraw the amount of ETH properly"
         );
@@ -179,4 +192,22 @@ contract('MultiSigWallet', (ACCOUNTS) => {
       });
     });
   });
+  describe("Interact with ERC20 token", () => {
+    describe("#transfer tokens to OWNER_1", () => {
+      it("OWNER_1 should own new tokens", async () => {
+        const data =
+        //OWNER_1 submit and confirm transaction
+        await MultiSigWallet.submitTransaction(
+          ERC20.address,
+          0,
+          data,
+          {from: OWNER_1}
+        );
+      });
+
+
+    });
+  });
+
+
 });

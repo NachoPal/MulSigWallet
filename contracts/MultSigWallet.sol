@@ -93,9 +93,10 @@ contract MultiSigWallet is Ownable {
     masterKey = _masterKey;
   }
 
-  function balance() public view {
+  /* function balance() public view {
     address(this).balance;
-  }
+  } */
+
 
   function transactionConfirmedBy(uint _transactionId, address _owner) public view returns(bool) {
     return transactions[_transactionId].confirmations[_owner];
