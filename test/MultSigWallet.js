@@ -2,6 +2,7 @@ const chaiAsPromised = require("chai-as-promised");
 const chai = require("chai");
 const txHelper = require('./helpers/transactions');
 const getTxData = txHelper.getTxData;
+const getAbiByFunctionNames = txHelper.getAbiByFunctionNames;
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -20,9 +21,6 @@ contract('MultiSigWallet', (ACCOUNTS) => {
 
   let MultiSigWallet;
   let ERC20;
-
-  // const MultiSigWallet = await MultiSigWalletArtifacts.deployed();
-  // const ERC20 = await ERC20Artifacts.deployed();
 
   const MINTED_TOKENS = 10;
   const TOKEN_TO_TRANSFER = 5;
@@ -51,7 +49,6 @@ contract('MultiSigWallet', (ACCOUNTS) => {
       });
 
       it("should revert if not Token Owner", async () => {
-
         await expect(
           ERC20.mint(
             MultiSigWallet.address,
@@ -61,8 +58,9 @@ contract('MultiSigWallet', (ACCOUNTS) => {
         ).to.eventually.be.rejectedWith("revert");
       });
     });
+
     describe("#addERC20token", () => {
-      it("should approve MASTER_KEY as spender of MultiSigWallet balance", async () => {
+      it("should approve MASTER_KEY as spender of MultiSigWallet balance & LOG recorded", async () => {
         await MultiSigWallet.addERC20token(
           ERC20.address,
           TOKEN_TO_APPROVE,
@@ -75,13 +73,42 @@ contract('MultiSigWallet', (ACCOUNTS) => {
         );
 
         assert.equal(allowance, TOKEN_TO_APPROVE, "Tokens allowance was not approved properly");
+
+        //TOKEN_ADDED LOG
+        const logs = await web3.eth.getPastLogs({
+          fromBlock: 1,
+          address: MultiSigWallet.address,
+          topics: [
+            web3.eth.abi.encodeEventSignature(
+              getAbiByFunctionNames(MultiSigWallet.abi)["TokenAdded"]
+            )
+          ]
+        });
+
+        const decodedLogs = web3.eth.abi.decodeLog(
+          getAbiByFunctionNames(MultiSigWallet.abi)["TokenAdded"].inputs,
+          logs[0].data,
+          _.drop(logs[0].topics)
+        );
+
+        assert.deepEqual(
+          {
+            tokenAddress: decodedLogs.tokenAddress,
+            masterKey: decodedLogs.masterKey
+          },
+          {
+            tokenAddress: ERC20.address,
+            masterKey: MASTER_KEY
+          },
+          "TokenAdded Event not emitted properly"
+        );
       });
     });
   });
 
   describe("Transfer ETH to account", () => {
     describe("#submitTransaction (OWNER_1)", () => {
-      it("should submit and confirm a transaction", async () => {
+      it("should submit and confirm a transaction & LOG recorded", async () => {
         await MultiSigWallet.submitTransaction(
           MASTER_KEY,
           ETH_TO_TRANSFER,
@@ -111,6 +138,64 @@ contract('MultiSigWallet', (ACCOUNTS) => {
         );
 
         assert.equal(true, confirmation, "Transaction is not confirmed properly")
+
+        //SUBMISSION LOG
+        var logs = await web3.eth.getPastLogs({
+          fromBlock: 1,
+          address: MultiSigWallet.address,
+          topics: [
+            web3.eth.abi.encodeEventSignature(
+              getAbiByFunctionNames(MultiSigWallet.abi)["Submission"]
+            )
+          ]
+        });
+
+        var decodedLogs = web3.eth.abi.decodeLog(
+          getAbiByFunctionNames(MultiSigWallet.abi)["Submission"].inputs,
+          logs[0].data,
+          _.drop(logs[0].topics)
+        );
+
+        assert.deepEqual(
+          {
+            transactionId: Number(decodedLogs.transactionId),
+            submitter: decodedLogs.submitter
+          },
+          {
+            transactionId: TX_ID,
+            submitter: OWNER_1
+          },
+          "Submission Event not emitted properly"
+        );
+
+        //CONFIRMATION LOG
+        var logs = await web3.eth.getPastLogs({
+          fromBlock: 1,
+          address: MultiSigWallet.address,
+          topics: [
+            web3.eth.abi.encodeEventSignature(
+              getAbiByFunctionNames(MultiSigWallet.abi)["Confirmation"]
+            )
+          ]
+        });
+
+        var decodedLogs = web3.eth.abi.decodeLog(
+          getAbiByFunctionNames(MultiSigWallet.abi)["Confirmation"].inputs,
+          logs[0].data,
+          _.drop(logs[0].topics)
+        );
+
+        assert.deepEqual(
+          {
+            transactionId: Number(decodedLogs.transactionId),
+            confirmer: decodedLogs.confirmer
+          },
+          {
+            transactionId: TX_ID,
+            confirmer: OWNER_1
+          },
+          "Confirmation Event not emitted properly"
+        );
       });
     });
 
@@ -164,6 +249,35 @@ contract('MultiSigWallet', (ACCOUNTS) => {
           ETH_TO_TRANSFER,
           "MASTER_KEY did not receive the ETH"
         );
+
+        //EXECUTION LOG
+        var logs = await web3.eth.getPastLogs({
+          fromBlock: 1,
+          address: MultiSigWallet.address,
+          topics: [
+            web3.eth.abi.encodeEventSignature(
+              getAbiByFunctionNames(MultiSigWallet.abi)["Execution"]
+            )
+          ]
+        });
+
+        var decodedLogs = web3.eth.abi.decodeLog(
+          getAbiByFunctionNames(MultiSigWallet.abi)["Execution"].inputs,
+          logs[0].data,
+          _.drop(logs[0].topics)
+        );
+
+        assert.deepEqual(
+          {
+            transactionId: Number(decodedLogs.transactionId),
+            executor: decodedLogs.executor
+          },
+          {
+            transactionId: TX_ID,
+            executor: OWNER_2
+          },
+          "Execution Event not emitted properly"
+        );
       });
     });
 
@@ -181,7 +295,7 @@ contract('MultiSigWallet', (ACCOUNTS) => {
 
   describe("Withdraw ETH from MultiSigWallet", () => {
     describe("#withdrawBalance (MASTER_KEY)", () => {
-      it("should withdraw the amount of ETH", async () => {
+      it("should withdraw the amount of ETH & LOG recorded", async () => {
         const initialWalletBalance = await web3.eth.getBalance(MultiSigWallet.address);
 
         await MultiSigWallet.withdrawBalance(
@@ -196,6 +310,35 @@ contract('MultiSigWallet', (ACCOUNTS) => {
           finalWalletBalance,
           expectedFinalWalletBalance,
           "MASTER_KEY did not withdraw the amount of ETH properly"
+        );
+
+        //WITHDRAWAL LOG
+        var logs = await web3.eth.getPastLogs({
+          fromBlock: 1,
+          address: MultiSigWallet.address,
+          topics: [
+            web3.eth.abi.encodeEventSignature(
+              getAbiByFunctionNames(MultiSigWallet.abi)["Withdrawal"]
+            )
+          ]
+        });
+
+        var decodedLogs = web3.eth.abi.decodeLog(
+          getAbiByFunctionNames(MultiSigWallet.abi)["Withdrawal"].inputs,
+          logs[0].data,
+          _.drop(logs[0].topics)
+        );
+
+        assert.deepEqual(
+          {
+            sender: decodedLogs.sender,
+            amount: Number(decodedLogs.amount)
+          },
+          {
+            sender: MASTER_KEY,
+            amount: ETH_TO_WITHDRAW
+          },
+          "Withdrawal Event not emitted properly"
         );
       });
     });

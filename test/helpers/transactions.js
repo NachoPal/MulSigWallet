@@ -9,5 +9,6 @@ const encodedFunctionCall = (name, inputs, abi) => {
 module.exports = {
   getTxData: (obj) => {
     return encodedFunctionCall(obj.functionName, Object.values(obj.arguments), obj.abi)
-  }
+  },
+  getAbiByFunctionNames: getAbiByFunctionNames
 }

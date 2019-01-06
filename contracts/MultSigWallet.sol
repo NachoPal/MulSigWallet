@@ -21,10 +21,24 @@ contract MultiSigWallet is Ownable {
     address indexed confirmer
   );
 
-  event Execution(uint indexed transactionId);
-  event ExecutionFailure(uint indexed transactionId);
+  event Execution(
+    uint indexed transactionId,
+    address indexed executor
+  );
+
+  event ExecutionFailure(
+    uint indexed transactionId,
+    address indexed executor
+  );
 
   event Deposit(address indexed sender, uint value);
+
+  event Withdrawal(address indexed sender, uint amount);
+
+  event MasterKeyTransferred(
+    address indexed newMasterKey,
+    address indexed oldMasterKey
+  );
 
   modifier isMasterKey(address _address) {
     require(
@@ -156,10 +170,20 @@ contract MultiSigWallet is Ownable {
         Transaction storage trx = transactions[_transactionId];
         trx.executed = true;
         if (address(trx.destination).call.value(trx.value)(trx.data))
-            emit Execution(_transactionId);
+            emit Execution(_transactionId, msg.sender);
         else {
-            emit ExecutionFailure(_transactionId);
+            emit ExecutionFailure(_transactionId, msg.sender);
         }
+  }
+
+  function changeMasterKey(address _masterKey) public isMasterKey {
+    require(
+      address(_masterKey) =! address(0),
+      "New masterKey can not have address 0x0"
+    );
+    address oldMasterKey = masterKey;
+    masterKey = _masterKey;
+    emit MasterKeyTransferred(masterKey, oldMasterKey);
   }
 
   function withdrawBalance(uint _amount)
@@ -171,6 +195,7 @@ contract MultiSigWallet is Ownable {
         "Wallet does not have enough funds to withdraw"
       );
       address(msg.sender).transfer(_amount);
+      emit Withdrawal(msg.sender, _amount);
   }
 
   /// @dev Fallback function allows to deposit ether.
