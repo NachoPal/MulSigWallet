@@ -20,6 +20,8 @@ IGNACIO PALACIOS SANTOS
 
 4. Only wallet owner can change masterKey address.
 
+5. Only wallet owner can add ERC20 tokens.
+
 
 # Notes
 1. When transaction is executed (message call) `address(trx.destination).call.value(trx.value)(trx.data))` no GAS argument is attached. If `destination` is untrusted, it could lead to the consumption of all the GAS. This situation can be solved easily limiting `gasLimit` param in the transaction to be sign itself. Other option would be to add an attribute `gas` to `Transaction` struct, defining how much from `gasLimit` the owner is willing to use in the message call.
