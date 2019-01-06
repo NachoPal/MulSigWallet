@@ -2,9 +2,15 @@ pragma solidity ^0.4.24;
 //pragma experimental ABIEncoderV2;
 
 import "./Mixins/Ownable.sol";
+import "./Token/IERC20.sol";
 
 /** @title ERC20 extended token */
 contract MultiSigWallet is Ownable {
+
+  event TokenAdded(
+      address indexed tokenAddress,
+      string indexed tokenType
+  );
 
   event Submission(
     uint indexed transactionId,
@@ -93,9 +99,11 @@ contract MultiSigWallet is Ownable {
     masterKey = _masterKey;
   }
 
-  /* function balance() public view {
-    address(this).balance;
-  } */
+
+  function addERC20token(address _address, uint _value) onlyOwner public {
+    IERC20(_address).approve(masterKey, _value);
+    emit TokenAdded(_address, "ERC20");
+  }
 
 
   function transactionConfirmedBy(uint _transactionId, address _owner) public view returns(bool) {

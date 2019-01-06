@@ -1,5 +1,7 @@
 const chaiAsPromised = require("chai-as-promised");
 const chai = require("chai");
+const txHelper = require('./helpers/transactions');
+const getTxData = txHelper.getTxData;
 
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -56,6 +58,16 @@ contract('MultiSigWallet', (ACCOUNTS) => {
             {from: MASTER_KEY}
           )
         ).to.eventually.be.rejectedWith("revert");
+      });
+    });
+    describe("#addERC20token", () => {
+      it("should approve MASTER_KEY as spender of MultiSigWallet balance", async () => {
+        await MultiSigWallet.submitTransaction(
+          MASTER_KEY,
+          ETH_TO_TRANSFER,
+          "0x0",
+          {from: OWNER_1}
+        );
       });
     });
   });
@@ -195,7 +207,13 @@ contract('MultiSigWallet', (ACCOUNTS) => {
   describe("Interact with ERC20 token", () => {
     describe("#transfer tokens to OWNER_1", () => {
       it("OWNER_1 should own new tokens", async () => {
-        const data =
+
+        const data = getTxData({
+          abi: ERC20.abi,
+          functionName: "transfer",
+          arguments: {to: OWNER_1, value: TOKEN_TO_TRANSFER},
+        });
+
         //OWNER_1 submit and confirm transaction
         await MultiSigWallet.submitTransaction(
           ERC20.address,
@@ -203,11 +221,17 @@ contract('MultiSigWallet', (ACCOUNTS) => {
           data,
           {from: OWNER_1}
         );
+
+        //OWNER_2 confirms and executes transaction
+        await MultiSigWallet.confirmTransaction(
+          TX_ID + 1,
+          {from: OWNER_2}
+        );
+
+        const balance = await ERC20.balanceOf(OWNER_1);
+
+        assert.equal(balance, TOKEN_TO_TRANSFER, "Tokens were not transfered properly");
       });
-
-
     });
   });
-
-
 });
