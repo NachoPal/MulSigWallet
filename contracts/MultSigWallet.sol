@@ -144,11 +144,6 @@ contract MultiSigWallet is Pausable {
         address indexed oldMasterKey
     );
 
-    /** @dev Event to log MasterKey has been transferred.
-     *  @param newMasterKey Address of the new MasterKey.
-     *  @param oldMasterKey Address of the old MasterKey.
-     */
-
     uint public numberOfOwners;
     uint public numberOfConfirmations;
     mapping(address => bool) public owners;
@@ -180,6 +175,7 @@ contract MultiSigWallet is Pausable {
     )
         public
         payable
+        notNull(_masterKey)
     {
         require(
             _owners.length == _numberOfOwners,
@@ -192,6 +188,10 @@ contract MultiSigWallet is Pausable {
         );
 
         for(uint i=0; i < _numberOfOwners; i++) {
+          require(
+            address(_owners[i]) != address(0),
+            "Address can not be 0x0"
+          );
             owners[_owners[i]] = true;
         }
 
@@ -297,6 +297,10 @@ contract MultiSigWallet is Pausable {
         onlyOwner
         notNull(_newMasterKey)
     {
+        require(
+            _newMasterKey != masterKey,
+            "New master key can not be the same"
+        );
         address oldMasterKey = masterKey;
         masterKey = _newMasterKey;
         emit MasterKeyTransferred(masterKey, oldMasterKey);

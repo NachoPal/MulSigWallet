@@ -15,6 +15,7 @@ contract('MultiSigWallet', (ACCOUNTS) => {
   const TOKEN_OWNER = ACCOUNTS[0];
   const WALLET_OWNER = ACCOUNTS[0];
   const MASTER_KEY = ACCOUNTS[4];
+  const NEW_MASTER_KEY = ACCOUNTS[5];
   const OWNER_1 = ACCOUNTS[1];
   const OWNER_2 = ACCOUNTS[2];
   const OWNER_3 = ACCOUNTS[3];
@@ -400,15 +401,26 @@ contract('MultiSigWallet', (ACCOUNTS) => {
     });
   });
 
-  describe("Wallet Owner - ADMIN", () => {
+  describe("ADMIN - Wallet Owner", () => {
     describe("#changeMasterKey", () => {
-      it("MasterKey should be changed", async () => {
-        await MultiSigWallet.submitTransaction(
-          ERC20.address,
-          0,
-          data,
-          {from: OWNER_1}
+      it("MasterKey should be changed (WALLET_OWNER)", async () => {
+        await MultiSigWallet.changeMasterKey(
+          NEW_MASTER_KEY,
+          {from: WALLET_OWNER}
         );
+
+        const newMasterKey = await MultiSigWallet.masterKey();
+
+        assert.equal(newMasterKey, NEW_MASTER_KEY, "Master key has not been updated properly")
+      });
+
+      it("should revert if sender is not WALLET_OWNER", async () => {
+        await expect(
+          MultiSigWallet.changeMasterKey(
+            NEW_MASTER_KEY,
+            {from: MASTER_KEY}
+          )
+        ).to.eventually.be.rejectedWith("revert");
       });
     });
   });
