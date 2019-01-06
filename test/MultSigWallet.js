@@ -399,4 +399,17 @@ contract('MultiSigWallet', (ACCOUNTS) => {
       });
     });
   });
+
+  describe("Wallet Owner - ADMIN", () => {
+    describe("#changeMasterKey", () => {
+      it("MasterKey should be changed", async () => {
+        await MultiSigWallet.submitTransaction(
+          ERC20.address,
+          0,
+          data,
+          {from: OWNER_1}
+        );
+      });
+    });
+  });
 });
